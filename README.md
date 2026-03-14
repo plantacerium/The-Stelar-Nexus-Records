@@ -35,4 +35,4 @@ Since the project uses Three.js textures, it requires a local server to avoid CO
 
 ---
 
-*Museum Stelar Plantacerium Sun System.*
+*Museum Stellar Plantacerium Sun System.*
