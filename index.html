@@ -350,16 +350,35 @@
             RIGHT: null // Standard context menu enabled
         };
 
-        const textureLoader = new THREE.TextureLoader();
+        // --- Loading Management ---
+        const loadingManager = new THREE.LoadingManager();
+        loadingManager.onStart = (url) => console.log('Stellar Nexus: Loading artifact...', url);
+        loadingManager.onLoad = () => console.log('Stellar Nexus: All systems nominal. Constellation initialized.');
+        loadingManager.onError = (url) => {
+            console.error('Stellar Nexus Error: Failed to load', url);
+            if (window.location.protocol === 'file:') {
+                console.error('CORS BLOCK: Textures cannot be loaded via file://. Use a local server (npx serve / Live Server).');
+            }
+        };
 
-        // --- 3. Background (Nebula & Glowing Dust) ---
-        const nebula = textureLoader.load('assets/nebula.png');
-        const skyGeo = new THREE.SphereGeometry(600, 32, 32);
-        const skyMat = new THREE.MeshBasicMaterial({ map: nebula, side: THREE.BackSide, transparent: true, opacity: 0.6 });
-        scene.add(new THREE.Mesh(skyGeo, skyMat));
+        const textureLoader = new THREE.TextureLoader(loadingManager);
+
+        // --- 3. Background (Premium Skybox Cubo) ---
+        const cubeLoader = new THREE.CubeTextureLoader(loadingManager);
+        const skyboxTexture = cubeLoader.load([
+            'assets/sky_px.png', 'assets/sky_nx.png',
+            'assets/sky_py.png', 'assets/sky_ny.png',
+            'assets/sky_pz.png', 'assets/sky_nz.png'
+        ]);
+        
+        // Apply as global background and environment
+        scene.background = skyboxTexture;
+        scene.environment = skyboxTexture; // Enhances reflections on the DNA glass
 
         // Create a premium circular glowing flare texture for particles
         const createFlareTexture = () => {
+
+
             const canvas = document.createElement('canvas');
             canvas.width = 64;
             canvas.height = 64;
@@ -418,9 +437,15 @@
         // --- 4. Majestic Core (Human) ---
         const humanTex = textureLoader.load('assets/human.png');
         const coreGroup = new THREE.Group();
-        const humanSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: humanTex, blending: THREE.AdditiveBlending, opacity: 0.9 }));
+        const humanSprite = new THREE.Sprite(new THREE.SpriteMaterial({ 
+            map: humanTex, 
+            blending: THREE.AdditiveBlending, 
+            opacity: 0.9,
+            fog: false // Human silhouette shouldn't be fogged out significantly
+        }));
         humanSprite.scale.set(15, 15, 1);
         coreGroup.add(humanSprite);
+
 
         // Halo
         const halo = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.1, side: THREE.BackSide }));

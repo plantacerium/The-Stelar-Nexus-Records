@@ -1,6 +1,6 @@
 # 🧬 Plantacerium | The Stellar Nexus Archive
 
-![Museum Art Gallery Stellar Plantacerium](./assets/Museum_Art_Gallery_Stelar_Plantacerium.JPG)
+![Museum Art Gallery Stellar Plantacerium](./assets/Museum_Art_Gallery_Stelar_Plantacerium_Skybox.JPG)
 
 **Plantacerium** is a high-fidelity, immersive 3D archive designed to visualize the evolution of the "Museum Stelar" ecosystem. Built with a cinematic "Expanse-style" aesthetic, it transforms GitHub repository data into a celestial constellation of interactive DNA double helixes.
 
