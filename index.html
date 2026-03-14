@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plantacerium | The Stellar Nexus Archive</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@200;300;400;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --cyan-vfx: #00f5ff;
+            --dark-bg: #010103;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--dark-bg);
+            font-family: 'Inter', sans-serif;
+            color: white;
+        }
+
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+
+        /* --- CAPA VFX CINEMÁTICA --- */
+        .vfx-vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            box-shadow: inset 0 0 15vw rgba(0, 0, 0, 0.95);
+            z-index: 50;
+        }
+
+        .vfx-noise {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 49;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        .vfx-ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vh;
+            background: radial-gradient(circle, rgba(0, 245, 255, 0.07) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 2;
+            animation: pulse-ambient 8s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulse-ambient {
+            0% {
+                opacity: 0.4;
+                scale: 0.95;
+            }
+
+            100% {
+                opacity: 0.8;
+                scale: 1.05;
+            }
+        }
+
+        .vfx-scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 48;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+        }
+
+        /* --- HOLO-GLASS PANEL 3.0 --- */
+        .holo-panel {
+            background:
+                linear-gradient(135deg, rgba(8, 12, 20, 0.8) 0%, rgba(2, 4, 8, 0.95) 100%),
+                repeating-linear-gradient(0deg, rgba(0, 245, 255, 0.03) 0px, transparent 1px, transparent 3px);
+            backdrop-filter: blur(30px) saturate(200%);
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            box-shadow:
+                0 40px 100px rgba(0, 0, 0, 0.8),
+                inset 0 0 30px rgba(0, 245, 255, 0.1);
+            position: relative;
+            transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            clip-path: polygon(0 15px, 15px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+        }
+
+        .tech-brace {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 245, 255, 0.4);
+            pointer-events: none;
+        }
+
+        .brace-tl {
+            top: 0;
+            left: 0;
+            border-right: 0;
+            border-bottom: 0;
+        }
+
+        .brace-tr {
+            top: 0;
+            right: 0;
+            border-left: 0;
+            border-bottom: 0;
+        }
+
+        .brace-bl {
+            bottom: 0;
+            left: 0;
+            border-right: 0;
+            border-top: 0;
+        }
+
+        .text-vfx-core {
+            text-shadow: 0 0 20px rgba(0, 245, 255, 0.5), 0 0 40px rgba(0, 245, 255, 0.2);
+            animation: text-pulse 4s infinite alternate;
+        }
+
+        @keyframes text-pulse {
+            from {
+                opacity: 0.9;
+            }
+
+            to {
+                opacity: 1;
+                filter: brightness(1.2);
+            }
+        }
+
+        .text-vfx-glitch:hover {
+            animation: glitch-skew 0.3s infinite;
+            text-shadow: -2px 0 rgba(255, 0, 255, 0.7), 2px 0 rgba(0, 255, 255, 0.7);
+        }
+
+        @keyframes glitch-skew {
+
+            0%,
+            100% {
+                transform: skew(0deg);
+            }
+
+            33% {
+                transform: skew(-3deg);
+            }
+
+            66% {
+                transform: skew(3deg);
+            }
+        }
+
+        .btn-vfx {
+            background: rgba(0, 245, 255, 0.05);
+            border: 1px solid rgba(0, 245, 255, 0.3);
+            color: var(--cyan-vfx);
+            font-family: 'Orbitron';
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.2em;
+        }
+
+        .btn-vfx:hover {
+            background: var(--cyan-vfx);
+            color: black;
+            box-shadow: 0 0 30px var(--cyan-vfx);
+            letter-spacing: 0.3em;
+        }
+
+        .btn-vfx::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: 0.5s;
+        }
+
+        .btn-vfx:hover::before {
+            left: 150%;
+        }
+
+        /* Animation for side elements */
+        .vfx-flare-horizontal {
+            position: absolute;
+            top: 30%;
+            left: -50%;
+            width: 200%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.6), transparent);
+            box-shadow: 0 0 15px rgba(0, 245, 255, 0.4);
+            opacity: 0.3;
+            transform: rotate(-1deg);
+        }
+    </style>
+</head>
+
+<body class="bg-[#010103] overflow-hidden text-white font-inter">
+    <!-- Visual Atmosphere -->
+    <div class="vfx-vignette"></div>
+    <div class="vfx-noise"></div>
+    <div class="vfx-scanlines"></div>
+    <div class="vfx-ambient-glow"></div>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer" class="p-10 h-screen flex flex-col justify-between">
+        <!-- Header -->
+        <header class="flex flex-col items-center pointer-events-auto">
+            <h1
+                class="font-orbitron text-5xl md:text-6xl text-white tracking-[0.5em] text-vfx-core text-vfx-glitch mb-4">
+                PLANTACERIUM
+            </h1>
+            <div class="h-[1px] w-64 bg-gradient-to-r from-transparent via-cyan-500/60 to-transparent"></div>
+            <p class="mt-2 text-[10px] tracking-[0.8em] text-cyan-400 font-bold uppercase">Stellar Archive // 26 Sectors
+                Active</p>
+        </header>
+
+        <!-- Information Panel -->
+        <div id="info-panel" class="holo-panel p-9 max-w-[420px] opacity-0 -translate-x-20 pointer-events-auto">
+            <div class="tech-brace brace-tl"></div>
+            <div class="tech-brace brace-tr"></div>
+            <div class="tech-brace brace-bl"></div>
+            <div class="vfx-flare-horizontal"></div>
+
+            <span id="node-domain"
+                class="text-[9px] font-bold text-cyan-400 border border-cyan-500/30 px-3 py-1 bg-cyan-950/20 tracking-[0.3em] uppercase">DOMAIN_SEC</span>
+
+            <h2 id="node-title"
+                class="text-3xl font-orbitron font-bold mt-6 mb-4 text-white uppercase tracking-tight leading-tight">
+                NODE_NAME</h2>
+
+            <div class="border-t border-white/10 pt-6 mb-8 group">
+                <p id="node-impact"
+                    class="text-slate-400 text-sm leading-relaxed mb-6 border-l-2 border-cyan-500/30 pl-4 italic group-hover:text-cyan-100 transition-colors">
+                    Initializing neural mapping for sector archive...
+                </p>
+            </div>
+
+            <a id="node-link" href="#" target="_blank"
+                class="btn-vfx block w-full py-4 text-center text-[11px] font-black uppercase">
+                <span>OPEN REPOSITORY</span>
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <footer
+            class="flex justify-between items-end opacity-50 text-[10px] font-orbitron tracking-[0.3em] text-cyan-300 pointer-events-none">
+            <div class="flex gap-8">
+                <div>COORD_X: <span id="stat-x" class="text-white">0.00</span></div>
+                <div>COORD_Z: <span id="stat-z" class="text-white">0.00</span></div>
+            </div>
+            <div class="text-right space-y-1">
+                <p>RIGHT CLICK: MENU_CONTEXT_ACTIVE</p>
+                <p>MOUSE WHEEL: DEEP_SPACE_ZOOM</p>
+                <p class="text-[8px] opacity-60">PLANETARY NEXUS GENERATION v3.1</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // --- 1. Dataset ---
+        const repoData = [
+            { title: "Metamorphic Resonance Human Language Gamers", domain: "Language Meditators Gamers Legends", impact: "⊛ Consciousness Architecture ⊛", url: "https://github.com/plantacerium/Metamorphic-Resonance-Human-Language-Gamers" },
+            { title: "MRHLG Memory Modules", domain: "Memory Modules", impact: "Fork, Pull Request, Contribute, License MIT.", url: "https://github.com/plantacerium/Metamorphic-Resonance-Human-Language-Gamers-Memory-Modules" },
+            { title: "La Colisión de los Tres Ángulos", domain: "Meditación", impact: "Una epopeya de autodescubrimiento, geometría del alma y evolución espiritual.", url: "https://github.com/plantacerium/La-Colision-de-los-Tres-Angulos" },
+            { title: "plantacerium.github.io", domain: "Deep Writing", impact: "The central command hub. Technical portfolio.", url: "https://plantacerium.github.io/" },
+            { title: "GoLuminamics", domain: "Game & Computation", impact: "Strategic Board Game Where Light Becomes Your Path.", url: "https://github.com/plantacerium/GoLuminamics" },
+            { title: "GeoLuminamics", domain: "Creative Geometry", impact: "Space where logic dissolves into luminosity.", url: "https://github.com/plantacerium/GeoLuminamics" },
+            { title: "Silice Protocol", domain: "AI Infrastructure", impact: "Low level protocol designed for high efficiency AI.", url: "https://github.com/plantacerium/SiliceProtocol" },
+            { title: "Cogni Trace", domain: "Debug & Intelligence", impact: "Observability tool that transforms runtime data into intelligence.", url: "https://github.com/plantacerium/CogniTrace" },
+            { title: "Greenmerald", domain: "DevEx TUI", impact: "Elegance to the terminal. High-performance file explorer.", url: "https://github.com/plantacerium/greenmerald-tui-markdown-renderer" },
+            { title: "Greenmerald Notes", domain: "Knowledge Base", impact: "Notes reader and interactive experience.", url: "https://github.com/plantacerium/GreenmeraldNotes" },
+            { title: "Code Lumer", domain: "App & Tooling", impact: "Illuminating code with high resolutions snapshots.", url: "https://github.com/plantacerium/CodeLumer" },
+            { title: "Quantum Chronometer", domain: "Precision UI", impact: "Quantum state management and creative interactions.", url: "https://github.com/plantacerium/QuantumChronometerEmojinator" },
+            { title: "Powerer Pointerer Silice", domain: "Automation", impact: "Codebase, Narrated by AI, Rendered in Slides.", url: "https://github.com/plantacerium/PowererPointererSIlice" },
+            { title: "Cyber Walk Theme", domain: "Blog Theme", impact: "Digital workspace for those who communicate through code.", url: "https://github.com/plantacerium/zola-theme-cyber-walk" },
+            { title: "Power Matrix Rain", domain: "Visualization", impact: "Programmable engine. Built with Rust and WGPU.", url: "https://github.com/plantacerium/PowerMatrixRain" },
+            { title: "Chronos Aeternum", domain: "Horological Instrument", impact: "Meditative interface for anchoring consciousness.", url: "https://github.com/plantacerium/ChronosAeternum" },
+            { title: "Chronos Aeternum Zen", domain: "Meditative Brush", impact: "Transforms passage of time into ink-brushed archives.", url: "https://github.com/plantacerium/ChronosAeternumZen" },
+            { title: "Chronos Aeternum TUI", domain: "Terminal Breath", impact: "Time as a permanent inventory of experience.", url: "https://github.com/plantacerium/ChronosAeternumTUI" },
+            { title: "Tribal MD Viewer", domain: "Book Reader", impact: "High-fidelity reading experience for Markdown.", url: "https://github.com/plantacerium/TribalMarkdownViewer" },
+            { title: "Mayan Calendar", domain: "Cycles of Cycles", impact: " Fractal Pattern Analyzer. Time is a spiral.", url: "https://github.com/plantacerium/MayanCalendar" },
+            { title: "Storyteller Board", domain: "Ambient Audio", impact: "Turn storytelling into immersive auditory journeys.", url: "https://github.com/plantacerium/SoundBoardStorytelling" },
+            { title: "Ripple Oscilloscope", domain: "Audio Visualizer", impact: "Rust, WebGPU and Web graphics boundaries.", url: "https://github.com/plantacerium/RippleOscilloscope" },
+            { title: "Silicio Socratico", domain: "Thinking Code", impact: "Intelligence Configuration, Socratic Agent.", url: "https://github.com/plantacerium/SilicioSocratico" },
+            { title: "Silice Mapper", domain: "Codebase Graph", impact: "Transforms codebases into Knowledge Graphs.", url: "https://github.com/plantacerium/SIliceCodeBaseMapper" },
+            { title: "Resonant Planet", domain: "Biófsera Sónica", impact: "Audio and text as layers of a consciousness planet.", url: "https://github.com/plantacerium/ResonantPlanet" },
+            { title: "Gaia Human Synapse", domain: "CoEvolución", impact: "Software as micelium; hardware as Gaia's earth.", url: "https://github.com/plantacerium/GaiaHumanSynapse" }
+        ];
+
+        // --- 2. Three.js Engine ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x010103, 0.008);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 30, 120);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.4;
+        controls.maxDistance = 600; // --- EXTENDED ZOOM ---
+        controls.minDistance = 20;
+
+        // Right-click freedom
+        controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: null // Standard context menu enabled
+        };
+
+        const textureLoader = new THREE.TextureLoader();
+
+        // --- 3. Background (Nebula & Glowing Dust) ---
+        const nebula = textureLoader.load('assets/nebula.png');
+        const skyGeo = new THREE.SphereGeometry(600, 32, 32);
+        const skyMat = new THREE.MeshBasicMaterial({ map: nebula, side: THREE.BackSide, transparent: true, opacity: 0.6 });
+        scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+        // Create a premium circular glowing flare texture for particles
+        const createFlareTexture = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(0, 245, 255, 0.4)');
+            gradient.addColorStop(0.4, 'rgba(0, 245, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 245, 255, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        };
+
+        const starTexture = createFlareTexture();
+        const particleCount = 25000;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(particleCount * 3);
+        const pColor = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            const r = 40 + Math.random() * 300;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            pPos[i3] = r * Math.sin(phi) * Math.cos(theta);
+            pPos[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            pPos[i3 + 2] = r * Math.cos(phi);
+
+            // Randomize star colors within the cyan/blue spectrum
+            const hue = 0.5 + Math.random() * 0.1;
+            const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+            pColor[i3] = color.r;
+            pColor[i3 + 1] = color.g;
+            pColor[i3 + 2] = color.b;
+        }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        pGeo.setAttribute('color', new THREE.BufferAttribute(pColor, 3));
+
+        const pMat = new THREE.PointsMaterial({
+            size: 1.2,
+            map: starTexture,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            vertexColors: true,
+            depthWrite: false,
+            sizeAttenuation: true
+        });
+        const particleMesh = new THREE.Points(pGeo, pMat);
+        scene.add(particleMesh);
+
+
+        // --- 4. Majestic Core (Human) ---
+        const humanTex = textureLoader.load('assets/human.png');
+        const coreGroup = new THREE.Group();
+        const humanSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: humanTex, blending: THREE.AdditiveBlending, opacity: 0.9 }));
+        humanSprite.scale.set(15, 15, 1);
+        coreGroup.add(humanSprite);
+
+        // Halo
+        const halo = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.1, side: THREE.BackSide }));
+        coreGroup.add(halo);
+        scene.add(coreGroup);
+
+        // --- 5. DNA Constellation (Circle Distribution) ---
+        const monoliths = [];
+        const constellationGroup = new THREE.Group();
+        scene.add(constellationGroup);
+
+        const circleRadius = 70; // --- PERFECT CIRCLE ---
+        const nodeGeo = new THREE.SphereGeometry(0.3, 12, 12);
+        const rungGeo = new THREE.CylinderGeometry(0.06, 0.06, 3, 8);
+
+        repoData.forEach((data, i) => {
+            const helixGroup = new THREE.Group();
+
+            // Premium Spectral Signature (Golden Angle Distribution)
+            // This ensures maximum visual distinction between adjacent strands
+            const hue = (i * 137.5 / 360) % 1;
+            const helixColor = new THREE.Color().setHSL(hue, 0.9, 0.6);
+            const emissiveColor = new THREE.Color().setHSL(hue, 1.0, 0.5);
+
+            const helixMat = new THREE.MeshPhysicalMaterial({
+                color: helixColor,
+                emissive: emissiveColor,
+                emissiveIntensity: 1.5,
+                metalness: 0.95,
+                roughness: 0.05,
+                transparent: true,
+                opacity: 0.85,
+                ior: 1.5,
+                transmission: 0.2
+            });
+
+
+            // Double Helix Generation
+            for (let j = 0; j < 15; j++) {
+                const angle = j * 0.5;
+                const y = (j - 7.5) * 1.5;
+
+                const node1 = new THREE.Mesh(nodeGeo, helixMat);
+                node1.position.set(Math.cos(angle) * 1.5, y, Math.sin(angle) * 1.5);
+                helixGroup.add(node1);
+
+                const node2 = new THREE.Mesh(nodeGeo, helixMat);
+                node2.position.set(Math.cos(angle + Math.PI) * 1.5, y, Math.sin(angle + Math.PI) * 1.5);
+                helixGroup.add(node2);
+
+                const rung = new THREE.Mesh(rungGeo, helixMat);
+                rung.position.set(0, y, 0);
+                rung.rotation.z = Math.PI / 2;
+                rung.rotation.y = angle;
+                helixGroup.add(rung);
+            }
+
+            // --- 5.1 Invisible Hit Volume (For Easier Clicking) ---
+            const hitGeo = new THREE.CylinderGeometry(3.5, 3.5, 22, 8);
+            const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+            const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+            helixGroup.add(hitMesh);
+            hitMesh.name = "hit_volume";
+
+            const theta = (i / repoData.length) * Math.PI * 2;
+
+            helixGroup.position.set(Math.cos(theta) * circleRadius, 0, Math.sin(theta) * circleRadius);
+            helixGroup.lookAt(0, 0, 0);
+
+            helixGroup.userData = { ...data, index: i, color: helixColor, baseEmissive: 1.2 };
+            constellationGroup.add(helixGroup);
+            monoliths.push(helixGroup);
+        });
+
+        // --- 6. Lighting ---
+        scene.add(new THREE.AmbientLight(0x404040, 3));
+        const centerLight = new THREE.PointLight(0x00f5ff, 8, 100);
+        scene.add(centerLight);
+
+        const inspectionLight = new THREE.PointLight(0xffffff, 0, 40);
+        scene.add(inspectionLight);
+
+        // --- 7. Interaction ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let activeMonolith = null;
+
+        window.addEventListener('click', (e) => {
+            if (e.button !== 0) return; // Ignore right click
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(monoliths, true);
+            const infoPanel = document.getElementById('info-panel');
+
+            if (intersects.length > 0) {
+                let target = intersects[0].object;
+                while (target.parent && !monoliths.includes(target)) target = target.parent;
+
+                activeMonolith = target;
+                const data = target.userData;
+
+                document.getElementById('node-title').innerText = data.title;
+                document.getElementById('node-domain').innerText = data.domain;
+                document.getElementById('node-impact').innerText = data.impact;
+                document.getElementById('node-link').href = data.url;
+
+                // Dynamic labels
+                const label = data.url.includes('.io') ? 'VIEW ARCHIVE' : 'OPEN REPOSITORY';
+                document.querySelector('#node-link span').innerText = label;
+
+                infoPanel.classList.remove('opacity-0', '-translate-x-20');
+                infoPanel.classList.add('opacity-100', 'translate-x-0');
+
+                inspectionLight.color.copy(data.color);
+                inspectionLight.intensity = 15;
+                controls.autoRotate = false;
+            } else {
+                activeMonolith = null;
+                infoPanel.classList.add('opacity-0', '-translate-x-20');
+                inspectionLight.intensity = 0;
+                controls.autoRotate = true;
+            }
+        });
+
+        // --- 7.1 Hover Feedback ---
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(monoliths, true);
+            document.body.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
+        });
+
+        // --- 8. Animation Loop ---
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getElapsedTime();
+
+            controls.update();
+            coreGroup.rotation.y = dt * 0.2;
+
+            monoliths.forEach((m, i) => {
+                const isSelected = (m === activeMonolith);
+                m.rotation.y += isSelected ? 0.04 : 0.01;
+                m.position.y = Math.sin(dt + i * 0.5) * 2;
+
+                if (isSelected) {
+                    const worldPos = new THREE.Vector3();
+                    m.getWorldPosition(worldPos);
+                    inspectionLight.position.copy(worldPos).add(new THREE.Vector3(0, 0, 10));
+                }
+            });
+
+            // Update HUD Stats
+            document.getElementById('stat-x').innerText = camera.position.x.toFixed(2);
+            document.getElementById('stat-z').innerText = camera.position.z.toFixed(2);
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+
+</html>
