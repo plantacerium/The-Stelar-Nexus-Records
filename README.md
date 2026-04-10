@@ -24,6 +24,16 @@
 - **Geometry**: Procedural Buffer Geometries
 - **Lighting**: ACES Filmic Tone Mapping with high-intensity Emissive Materials
 
+## ⚡ Support
+<div align="center">
+
+**Made with ❤️ and ☕ by the Plantacerium**
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/plantacerium)
+
+⭐**Star us on GitHub**⭐
+</div>
+
 ## 🛠️ Setup & Usage
 
 Since the project uses Three.js textures, it requires a local server to avoid CORS issues:
@@ -34,5 +44,6 @@ Since the project uses Three.js textures, it requires a local server to avoid CO
 4. Navigate to `index.html` in your browser.
 
 ---
+
 
 *Museum Stellar Plantacerium Sun System.*
